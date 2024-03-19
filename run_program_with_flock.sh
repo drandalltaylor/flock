@@ -10,7 +10,7 @@
 # programs such as "fuser" can be used to identify which process pid has exclusive access to the resource.
 #
 #   For example:
-#       ./run_program_with_flock.sh -l /var/lock/EXCLUSIVE_FLOCK_TEST1 -e 999 -f /var/app/user_program --param1 one --param2 two 
+#       ./run_program_with_flock.sh -l /var/lock/EXCLUSIVE_FLOCK_TEST1 -e 255 -f /var/app/user_program --param1 one --param2 two 
 #
 #       -l LOCK_PATH for the lock file (required)
 #       -e EXIT_CODE for the failure of the flock command (required)
@@ -50,7 +50,7 @@ function Usage() {
     echo "   -e --flock_error   EXIT_CODE for the failure of the flock command (required)"
     echo "   -f --user_program  USER_PROGRAM for the user program to execute (required)"
     echo " "
-    echo "    example: ./$MY_BASENAME -l /var/lock/EXCLUSIVE_FLOCK_TEST1 -e 999 -f ./test_use_locked_resource.sh"
+    echo "    example: ./$MY_BASENAME -l /var/lock/EXCLUSIVE_FLOCK_TEST1 -e 255 -f ./test_use_locked_resource.sh"
     echo " "
 }
 
@@ -120,12 +120,10 @@ FlockLog "${msg}"
        user_exit_code=$?
        msg="${MY_BASENAME}: INFO: ${LOCK_FILE} will be freed. Exit code: [${user_exit_code}] for cmd: [${USER_CMD}]"
        FlockLog "${msg}"
-       #rm -f ${LOCK_FILE}
        exit ${user_exit_code}
     else
-       msg="${MY_BASENAME}: ERROR: ${LOCK_FILE} not locked by flock; cmd not run: [${USER_CMD}]"
+       msg="${MY_BASENAME}: ERROR: ${LOCK_FILE} not flock'ed; cmd not run: [${USER_CMD}]"
        FlockLog "${msg}"
-       #rm -f ${LOCK_FILE}
        exit ${EXIT_CODE_FLOCK_FAILURE}
     fi
 ) 200>${LOCK_FILE}
@@ -137,15 +135,11 @@ if (( ${subshell_exit_code} == ${EXIT_CODE_FLOCK_FAILURE} )); then
     msg="${MY_BASENAME}: ERROR: flock failed for ${LOCK_FILE}; cmd not executed: [${USER_CMD}]; exit_code=${EXIT_CODE_FLOCK_FAILURE}"
     FlockLog "${msg}"
     exit ${EXIT_CODE_FLOCK_FAILURE}
+elif (( ${subshell_exit_code} == 0 )); then
+    msg="$MY_BASENAME: INFO: flock succeeded, now unlocked for ${LOCK_FILE}; cmd succeeded: [${USER_CMD}] ; exit_code=${subshell_exit_code}"
 else
-    if (( ${subshell_exit_code} == 0 )); then
-        msg="$MY_BASENAME: INFO: flock succeeded, now unlocked for ${LOCK_FILE}; cmd succeeded: [${USER_CMD}] ; exit_code=${subshell_exit_code}"
-    elif (( ${subshell_exit_code} == 1 )); then
-        msg="$MY_BASENAME: ERROR: flock failed, cmd not attempted: [${USER_CMD}] ; exit_code=${subshell_exit_code}"
-    else
-        msg="$MY_BASENAME: ERROR: flock succeeded, now unlocked for ${LOCK_FILE}; cmd failed: [${USER_CMD}] ; exit_code=${subshell_exit_code}"
-    fi
-    FlockLog "${msg}"
-    exit ${subshell_exit_code}
+    msg="$MY_BASENAME: ERROR: flock succeeded, now unlocked for ${LOCK_FILE}; cmd failed: [${USER_CMD}] ; exit_code=${subshell_exit_code}"
 fi
+FlockLog "${msg}"
+exit ${subshell_exit_code}
 
